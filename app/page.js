@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { Play, Settings, RotateCcw, ChevronRight, Volume2, Award, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Play, Settings, Home, ChevronRight, Volume2, Award, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 const MusicScaleTrainer = () => {
   const notes = ['do', 're', 'mi', 'fa', 'sol', 'la', 'si'];
@@ -73,6 +73,23 @@ const MusicScaleTrainer = () => {
       setTimeLeft(0);
     }
   }, [level, timerEnabled]);
+
+  // Effect per gestire Enter sui popup di feedback
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && feedback) {
+        nextQuestion();
+      }
+    };
+
+    if (feedback) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [feedback]);
 
 
 
@@ -286,8 +303,16 @@ const MusicScaleTrainer = () => {
       setTimerActive(false);
     }
     
-    // Assicurati che la tastiera sia sempre pronta
-    console.log('Domanda caricata, tastiera resettata e pronta');
+    // Dopo un breve delay, seleziona automaticamente il campo di testo appropriato
+    setTimeout(() => {
+      if (level <= 2) {
+        const textInput = document.querySelector('input[type="text"]');
+        if (textInput) textInput.focus();
+      } else {
+        const textarea = document.querySelector('textarea');
+        if (textarea) textarea.focus();
+      }
+    }, 100);
   };
 
   // Timer effect
@@ -332,6 +357,21 @@ const MusicScaleTrainer = () => {
     }
   };
 
+  // Funzione wrapper per Enter che gestisce anche la selezione automatica
+  const handleEnterCheckAnswer = () => {
+    checkAnswer();
+    // Dopo un breve delay, ri-seleziona il campo di testo appropriato
+    setTimeout(() => {
+      if (level <= 2) {
+        const textInput = document.querySelector('input[type="text"]');
+        if (textInput) textInput.focus();
+      } else {
+        const textarea = document.querySelector('textarea');
+        if (textarea) textarea.focus();
+      }
+    }, 100);
+  };
+
   const checkSingleAnswer = () => {
     if (!userAnswer.trim()) return;
     
@@ -357,6 +397,13 @@ const MusicScaleTrainer = () => {
         }]);
       }
       // Se è sbagliato, non proseguire automaticamente
+      // Dopo un breve delay, ri-seleziona il campo di testo per livelli 1-2
+      if (level <= 2) {
+        setTimeout(() => {
+          const textInput = document.querySelector('input[type="text"]');
+          if (textInput) textInput.focus();
+        }, 100);
+      }
     }
   };
 
@@ -442,6 +489,11 @@ const MusicScaleTrainer = () => {
         }]);
       }
       // Se è sbagliato, non proseguire automaticamente
+      // Dopo un breve delay, ri-seleziona il campo di testo per livelli 3-4
+      setTimeout(() => {
+        const textarea = document.querySelector('textarea');
+        if (textarea) textarea.focus();
+      }, 100);
     }
   };
 
@@ -452,6 +504,17 @@ const MusicScaleTrainer = () => {
       // Reset della tastiera prima di caricare la prossima domanda
       setKeyboardSequence([]);
       loadQuestion(questions[nextQ]);
+      
+      // Dopo un breve delay, ri-seleziona il campo di testo appropriato
+      setTimeout(() => {
+        if (level <= 2) {
+          const textInput = document.querySelector('input[type="text"]');
+          if (textInput) textInput.focus();
+        } else {
+          const textarea = document.querySelector('textarea');
+          if (textarea) textarea.focus();
+        }
+      }, 100);
     } else {
       setShowResults(true);
     }
@@ -755,6 +818,8 @@ const MusicScaleTrainer = () => {
             Il Cerchio delle Note
           </h1>
           
+
+          
           {/* Configurazione semplice - ottimizzata per mobile */}
           <div className="bg-slate-700 rounded-2xl p-4 mb-6 border border-slate-600">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -837,8 +902,10 @@ const MusicScaleTrainer = () => {
           
           {/* Bottone principale */}
           <button 
-            onClick={startGame} 
+            onClick={startGame}
+            onKeyDown={(e) => e.key === 'Enter' && startGame()}
             className="w-full bg-emerald-500 text-white py-4 px-8 rounded-xl font-bold text-xl hover:bg-emerald-600 transition-colors transform hover:scale-105"
+            tabIndex={0}
           >
             Inizia Gioco
           </button>
@@ -928,9 +995,11 @@ const MusicScaleTrainer = () => {
             
             <button
               onClick={resetGame}
+              onKeyDown={(e) => e.key === 'Enter' && resetGame()}
               className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 px-8 rounded-xl font-bold flex items-center justify-center gap-3 hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              tabIndex={0}
             >
-              <RotateCcw className="w-6 h-6" />
+                                <Home className="w-6 h-6" />
               Nuovo Gioco
             </button>
           </div>
@@ -949,7 +1018,7 @@ const MusicScaleTrainer = () => {
               onClick={resetGame}
               className="w-8 h-8 bg-slate-700 rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-all duration-300 border border-slate-500 hover:bg-slate-600"
             >
-              <RotateCcw className="w-4 h-4 text-slate-300" />
+                              <Home className="w-4 h-4 text-slate-300" />
             </button>
             <div>
               <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
@@ -963,6 +1032,10 @@ const MusicScaleTrainer = () => {
                   💡 Suggerimento: Prova a non guardare il cerchio!
                 </div>
               )}
+              {/* Avviso per il tasto Enter */}
+              <div className="text-xs text-slate-400 mt-1">
+                ⌨️ Usa <kbd className="bg-slate-600 px-1 py-0.5 rounded text-xs font-mono">Enter</kbd> per confermare
+              </div>
             </div>
           </div>
           
@@ -1080,14 +1153,21 @@ const MusicScaleTrainer = () => {
                     />
                     
                     {!feedback && (
-                      <button
-                        onClick={checkAnswer}
-                        disabled={!userAnswer.trim()}
-                        className="mt-4 bg-emerald-500 text-white py-3 px-8 rounded-xl font-bold text-lg flex items-center justify-center gap-3 mx-auto hover:bg-emerald-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
-                      >
-                        Conferma
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
+                      <>
+                        <button
+                          onClick={checkAnswer}
+                          onKeyDown={(e) => e.key === 'Enter' && handleEnterCheckAnswer()}
+                          disabled={!userAnswer.trim()}
+                          className="mt-4 bg-emerald-500 text-white py-3 px-8 rounded-xl font-bold text-lg flex items-center justify-center gap-3 mx-auto hover:bg-emerald-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                          tabIndex={0}
+                        >
+                          Conferma
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
+                        <div className="text-center mt-2">
+                          <span className="text-xs text-slate-400">⌨️ Premi <kbd className="bg-slate-600 px-1 py-0.5 rounded text-xs font-mono">Enter</kbd></span>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -1139,14 +1219,21 @@ const MusicScaleTrainer = () => {
                   />
                   
                   {!feedback && (
-                    <button
-                      onClick={checkAnswer}
-                      disabled={!userAnswer.trim()}
-                      className="mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 px-8 rounded-xl font-bold text-lg flex items-center justify-center gap-3 mx-auto hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
-                    >
-                      Conferma Sequenza
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
+                    <>
+                      <button
+                        onClick={checkAnswer}
+                        onKeyDown={(e) => e.key === 'Enter' && handleEnterCheckAnswer()}
+                        disabled={!userAnswer.trim()}
+                        className="mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 px-8 rounded-xl font-bold text-lg flex items-center justify-center gap-3 mx-auto hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                        tabIndex={0}
+                      >
+                        Conferma Sequenza
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                      <div className="text-center mt-2">
+                        <span className="text-xs text-slate-400">⌨️ Premi <kbd className="bg-slate-600 px-1 py-0.5 rounded text-xs font-mono">Enter</kbd></span>
+                      </div>
+                    </>
                   )}
                 </div>
               </>
@@ -1155,15 +1242,30 @@ const MusicScaleTrainer = () => {
             {/* Feedback popup piccolo e sovrapposto */}
             {feedback && (
               <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-                <div className={`max-w-sm mx-4 p-4 rounded-xl text-center font-medium shadow-2xl pointer-events-auto ${
-                  feedback === 'correct' 
-                    ? 'bg-emerald-500 text-white border-2 border-emerald-400' 
-                    : 'bg-red-500 text-white border-2 border-red-400'
-                }`}>
+                <div 
+                  className={`max-w-sm mx-4 p-4 rounded-xl text-center font-medium shadow-2xl pointer-events-auto ${
+                    feedback === 'correct' 
+                      ? 'bg-emerald-500 text-white border-2 border-emerald-400' 
+                      : 'bg-red-500 text-white border-2 border-red-400'
+                  }`}
+                >
                   {feedback === 'correct' ? (
-                    <div className="flex items-center justify-center gap-3">
-                      <span className="text-2xl">🎉</span>
-                      <span className="text-lg font-bold">Perfetto!</span>
+                    <div>
+                      <div className="flex items-center justify-center gap-3 mb-3">
+                        <span className="text-2xl">🎉</span>
+                        <span className="text-lg font-bold">Perfetto!</span>
+                      </div>
+                      <button 
+                        onClick={nextQuestion}
+                        onKeyDown={(e) => e.key === 'Enter' && nextQuestion()}
+                        className="bg-white text-emerald-600 py-2 px-6 rounded-lg font-bold transition-all duration-300 transform hover:scale-105 text-sm"
+                        tabIndex={0}
+                      >
+                        Continua
+                      </button>
+                      <div className="text-center mt-2">
+                        <span className="text-xs text-white/80">⌨️ Premi <kbd className="bg-white/20 px-1 py-0.5 rounded text-xs font-mono">Enter</kbd></span>
+                      </div>
                     </div>
                   ) : (
                     <div>
@@ -1183,11 +1285,16 @@ const MusicScaleTrainer = () => {
                         )}
                       </div>
                       <button 
-                        onClick={nextQuestion} 
+                        onClick={nextQuestion}
+                        onKeyDown={(e) => e.key === 'Enter' && nextQuestion()}
                         className="bg-white text-red-600 py-2 px-6 rounded-lg font-bold transition-all duration-300 transform hover:scale-105 text-sm"
+                        tabIndex={0}
                       >
                         Continua
                       </button>
+                      <div className="text-center mt-2">
+                        <span className="text-xs text-white/80">⌨️ Premi <kbd className="bg-white/20 px-1 py-0.5 rounded text-xs font-mono">Enter</kbd></span>
+                      </div>
                     </div>
                   )}
                 </div>
