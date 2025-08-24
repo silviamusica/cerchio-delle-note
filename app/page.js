@@ -14,6 +14,7 @@ const MusicScaleTrainer = () => {
   const [direction, setDirection] = useState('');
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [isTimeout, setIsTimeout] = useState(false); // Nuovo stato per distinguere timeout da risposta sbagliata
   const [mistakes, setMistakes] = useState([]);
   const [isReview, setIsReview] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -63,6 +64,17 @@ const MusicScaleTrainer = () => {
       return newRecent;
     });
   };
+
+  // Effect per disabilitare automaticamente il timer nei livelli 3-4
+  useEffect(() => {
+    if (level >= 3 && timerEnabled) {
+      setTimerEnabled(false);
+      setTimerActive(false);
+      setTimeLeft(0);
+    }
+  }, [level, timerEnabled]);
+
+
 
   const generateQuestion = (reviewMistakes = []) => {
     let attempts = 0;
@@ -197,6 +209,7 @@ const MusicScaleTrainer = () => {
     setMistakes([]);
     setShowResults(false);
     setIsReview(false);
+    setIsTimeout(false); // Reset timeout per nuovo gioco
     setPreviousStartNote('');
     setPreviousSequenceType('');
     // Reset della memoria delle domande recenti
@@ -261,6 +274,7 @@ const MusicScaleTrainer = () => {
       setUserAnswer('');
     }
     setFeedback('');
+    setIsTimeout(false); // Reset timeout per nuova domanda
     // Reset sempre la tastiera per ogni nuova domanda
     setKeyboardSequence([]);
     
@@ -287,6 +301,7 @@ const MusicScaleTrainer = () => {
             // Tempo scaduto - risposta automatica sbagliata
             if (!feedback) {
               setFeedback('incorrect');
+              setIsTimeout(true); // Marca come timeout
               if (!isReview) {
                 setMistakes([...mistakes, {
                   type: questions[currentQuestion]?.type === 'single' ? 'single' : 'sequence',
@@ -779,12 +794,21 @@ const MusicScaleTrainer = () => {
                     setTimerEnabled(value > 0);
                     if (value > 0) setTimerDuration(value);
                   }}
-                  className="w-full bg-slate-600 text-slate-200 px-3 py-2 rounded-lg border border-slate-500 focus:border-emerald-400 focus:outline-none text-center text-sm"
+                  disabled={level >= 3}
+                  className={`w-full px-3 py-2 rounded-lg border text-center text-sm transition-all duration-200 ${
+                    level >= 3 
+                      ? 'bg-slate-700 text-slate-500 border-slate-600 cursor-not-allowed opacity-50' 
+                      : 'bg-slate-600 text-slate-200 border-slate-500 focus:border-emerald-400 focus:outline-none'
+                  }`}
                 >
                   <option value={0}>Off</option>
                   <option value={5}>5s</option>
                   <option value={10}>10s</option>
+                  <option value={15}>15s</option>
                 </select>
+                {level >= 3 && (
+                  <div className="text-xs text-slate-500 mt-1">Disabilitato per sequenze</div>
+                )}
               </div>
             </div>
           </div>
@@ -818,6 +842,21 @@ const MusicScaleTrainer = () => {
           >
             Inizia Gioco
           </button>
+          
+          {/* Messaggio di supporto */}
+          <div className="mt-6 p-4 bg-slate-700 rounded-xl border border-slate-500">
+            <div className="text-center">
+              <div className="text-sm text-slate-300 mb-2">
+                🆘 <strong>Problemi o comportamenti anomali?</strong>
+              </div>
+              <div className="text-xs text-slate-400">
+                Scrivi a <span className="text-emerald-400 font-medium">silvia@sognandoilpiano.it</span>
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                Descrivi il problema o invia uno screenshot
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1004,8 +1043,8 @@ const MusicScaleTrainer = () => {
                   </span>?
                 </h2>
                 
-                {/* Timer display - posizionato vicino alla risposta */}
-                {timerEnabled && timerActive && (
+                {/* Timer display per domande singole (livelli 1-2) */}
+                {level <= 2 && timerEnabled && timerActive && (
                   <div className="mb-4 flex justify-center">
                     <div className="inline-flex items-center gap-2 bg-slate-700 px-4 py-2 rounded-full border border-slate-500">
                       <div className="w-5 h-5">
@@ -1065,8 +1104,8 @@ const MusicScaleTrainer = () => {
                   Direzione: {sequenceType === 'up' ? '↗ Verso l\'ottava superore' : '↙ Verso l\'ottava inferiore'}
                 </p>
                 
-                {/* Timer display - posizionato vicino alla risposta */}
-                {timerEnabled && timerActive && (
+                {/* Timer display per sequenze (livelli 3-4) - DISABILITATO */}
+                {/* {level >= 3 && timerEnabled && timerActive && (
                   <div className="mb-4 flex justify-center">
                     <div className="inline-flex items-center gap-2 bg-slate-700 px-4 py-2 rounded-full border border-slate-500">
                       <div className="w-5 h-5">
@@ -1081,7 +1120,7 @@ const MusicScaleTrainer = () => {
                       <span className="text-slate-300 text-xs">sec</span>
                     </div>
                   </div>
-                )}
+                )} */}
                 
                 {/* Campo di testo per sequenze (livelli 3-4) */}
                 <div className="max-w-2xl mx-auto">
@@ -1113,30 +1152,45 @@ const MusicScaleTrainer = () => {
               </>
             )}
             
-            {/* Feedback area compatta */}
+            {/* Feedback popup piccolo e sovrapposto */}
             {feedback && (
-              <div className={`mt-8 p-6 rounded-xl text-lg font-medium ${
-                feedback === 'correct' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'
-              }`}>
-                {feedback === 'correct' ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="text-2xl">🎉</span>
-                    <span>Perfetto!</span>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex items-center justify-center gap-3 mb-3">
-                      <span className="text-2xl">❌</span>
-                      <span>Non è corretto!</span>
+              <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+                <div className={`max-w-sm mx-4 p-4 rounded-xl text-center font-medium shadow-2xl pointer-events-auto ${
+                  feedback === 'correct' 
+                    ? 'bg-emerald-500 text-white border-2 border-emerald-400' 
+                    : 'bg-red-500 text-white border-2 border-red-400'
+                }`}>
+                  {feedback === 'correct' ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-2xl">🎉</span>
+                      <span className="text-lg font-bold">Perfetto!</span>
                     </div>
-                    <div className="text-base mb-4 bg-white bg-opacity-50 rounded-lg p-3">
-                      {questions[currentQuestion]?.type === 'single' ? `La risposta corretta è: ${questions[currentQuestion].answer}` : `Sequenza corretta: ${expectedSequence.join(' → ')}` }
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-center gap-3 mb-3">
+                        <span className="text-2xl">⏱️</span>
+                        <span className="text-lg font-bold">
+                          {isTimeout ? 'Tempo scaduto!' : 'Non è corretto!'}
+                        </span>
+                      </div>
+                      <div className="text-sm mb-3 bg-white bg-opacity-20 rounded-lg p-2">
+                        {isTimeout ? (
+                          <span>Non hai risposto in tempo!</span>
+                        ) : (
+                          questions[currentQuestion]?.type === 'single' 
+                            ? `Risposta corretta: ${questions[currentQuestion].answer}` 
+                            : `Sequenza: ${expectedSequence.join(' → ')}` 
+                        )}
+                      </div>
+                      <button 
+                        onClick={nextQuestion} 
+                        className="bg-white text-red-600 py-2 px-6 rounded-lg font-bold transition-all duration-300 transform hover:scale-105 text-sm"
+                      >
+                        Continua
+                      </button>
                     </div>
-                    <button onClick={nextQuestion} className="bg-red-600 hover:bg-red-700 text-white py-3 px-8 rounded-xl font-bold transition-all duration-300 transform hover:scale-105">
-                      Continua
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>
