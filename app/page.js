@@ -32,6 +32,9 @@ const MusicScaleTrainer = () => {
   const [keyboardSequence, setKeyboardSequence] = useState([]); // Sequenza inserita via tastiera
   const [showInstructions, setShowInstructions] = useState(true); // Nuovo stato per le istruzioni
   const [previousSequenceType, setPreviousSequenceType] = useState(''); // Per evitare sequenze ripetute
+  // Nuovo stato per la memoria delle domande recenti
+  const [recentQuestions, setRecentQuestions] = useState([]);
+  const [maxRecentQuestions] = useState(15); // Memoria delle ultime 15 domande
 
   const getLevelDescription = (level) => {
     switch(level) {
@@ -43,11 +46,94 @@ const MusicScaleTrainer = () => {
     }
   };
 
+  // Funzione per aggiornare la memoria delle domande
+  const updateRecentQuestions = (question) => {
+    const questionId = question.type === 'single' 
+      ? `${question.note}-${question.direction}`
+      : `${question.startNote}-${question.sequenceType}`;
+    
+    const questionWithId = { ...question, questionId };
+    
+    setRecentQuestions(prev => {
+      const newRecent = [...prev, questionWithId];
+      // Mantieni solo le ultime maxRecentQuestions domande
+      if (newRecent.length > maxRecentQuestions) {
+        return newRecent.slice(-maxRecentQuestions);
+      }
+      return newRecent;
+    });
+  };
+
   const generateQuestion = (reviewMistakes = []) => {
+    let attempts = 0;
+    const maxAttempts = 100; // Aumentato significativamente per evitare loop infiniti
+    
+    do {
+      attempts++;
+      
+      if (level <= 2) {
+        // Livelli 1 e 2: domande singole
+        const questionPool = reviewMistakes.length > 0 ? reviewMistakes.map(m => m.note) : notes;
+        const randomNote = questionPool[Math.floor(Math.random() * questionPool.length)];
+        const directions = ['successiva', 'precedente'];
+        const randomDirection = directions[Math.floor(Math.random() * directions.length)];
+        
+        const newQuestion = {
+          type: 'single',
+          note: randomNote,
+          direction: randomDirection,
+          answer: getCorrectAnswer(randomNote, randomDirection)
+        };
+        
+        // Controlla se la domanda è troppo recente
+        const questionId = `${randomNote}-${randomDirection}`;
+        const isRecent = recentQuestions.some(q => q.questionId === questionId);
+        
+        if (!isRecent) {
+          return newQuestion;
+        }
+      } else {
+        // Livelli 3 e 4: sequenze complete
+        let startNote;
+        let sequenceType;
+        
+        startNote = notes[Math.floor(Math.random() * notes.length)];
+        const sequenceTypes = ['up', 'down'];
+        sequenceType = sequenceTypes[Math.floor(Math.random() * sequenceTypes.length)];
+        
+        const newQuestion = {
+          type: 'sequence',
+          startNote: startNote,
+          sequenceType: sequenceType,
+          expectedSequence: generateSequence(startNote, sequenceType)
+        };
+        
+        // Controlla se la domanda è troppo recente
+        const questionId = `${startNote}-${sequenceType}`;
+        const isRecent = recentQuestions.some(q => q.questionId === questionId);
+        
+        if (!isRecent) {
+          setPreviousStartNote(startNote);
+          setPreviousSequenceType(sequenceType);
+          return newQuestion;
+        }
+      }
+      
+      // Se abbiamo esaurito i tentativi, resetta la memoria
+      if (attempts >= maxAttempts) {
+        setRecentQuestions([]);
+        attempts = 0;
+      }
+    } while (attempts < maxAttempts);
+    
+    // Fallback: genera una domanda qualsiasi
+    return generateFallbackQuestion();
+  };
+
+  // Funzione fallback per generare domande quando la memoria è piena
+  const generateFallbackQuestion = () => {
     if (level <= 2) {
-      // Livelli 1 e 2: domande singole
-      const questionPool = reviewMistakes.length > 0 ? reviewMistakes.map(m => m.note) : notes;
-      const randomNote = questionPool[Math.floor(Math.random() * questionPool.length)];
+      const randomNote = notes[Math.floor(Math.random() * notes.length)];
       const directions = ['successiva', 'precedente'];
       const randomDirection = directions[Math.floor(Math.random() * directions.length)];
       
@@ -58,28 +144,9 @@ const MusicScaleTrainer = () => {
         answer: getCorrectAnswer(randomNote, randomDirection)
       };
     } else {
-      // Livelli 3 e 4: sequenze complete
-      let startNote;
-      let sequenceType;
-      let attempts = 0;
-      const maxAttempts = 20;
-      
-      do {
-        startNote = notes[Math.floor(Math.random() * notes.length)];
-        const sequenceTypes = ['up', 'down'];
-        sequenceType = sequenceTypes[Math.floor(Math.random() * sequenceTypes.length)];
-        attempts++;
-        
-        // Se abbiamo provato troppe volte, resetta la sequenza precedente
-        if (attempts >= maxAttempts) {
-          setPreviousStartNote('');
-          setPreviousSequenceType('');
-          attempts = 0;
-        }
-      } while (
-        (startNote === previousStartNote && sequenceType === previousSequenceType) && 
-        attempts < maxAttempts
-      );
+      const startNote = notes[Math.floor(Math.random() * notes.length)];
+      const sequenceTypes = ['up', 'down'];
+      const sequenceType = sequenceTypes[Math.floor(Math.random() * sequenceTypes.length)];
       
       setPreviousStartNote(startNote);
       setPreviousSequenceType(sequenceType);
@@ -132,6 +199,8 @@ const MusicScaleTrainer = () => {
     setIsReview(false);
     setPreviousStartNote('');
     setPreviousSequenceType('');
+    // Reset della memoria delle domande recenti
+    setRecentQuestions([]);
     // Reset della tastiera all'inizio del gioco
     setKeyboardSequence([]);
     
@@ -147,6 +216,8 @@ const MusicScaleTrainer = () => {
     setCurrentQuestion(0);
     setScore(0); // Reset score for review
     setShowResults(false); // Make sure results are hidden
+    // Reset della memoria delle domande recenti
+    setRecentQuestions([]);
     // Reset della tastiera per il ripasso
     setKeyboardSequence([]);
     setPreviousStartNote('');
@@ -175,6 +246,9 @@ const MusicScaleTrainer = () => {
   };
 
   const loadQuestion = (question) => {
+    // Aggiorna la memoria delle domande recenti
+    updateRecentQuestions(question);
+    
     if (question.type === 'single') {
       setCurrentNote(question.note);
       setDirection(question.direction);
@@ -377,6 +451,8 @@ const MusicScaleTrainer = () => {
     setMistakes([]);
     setPreviousStartNote('');
     setPreviousSequenceType('');
+    // Reset della memoria delle domande recenti
+    setRecentQuestions([]);
     // Reset della tastiera all'inizio del gioco
     setKeyboardSequence([]);
     
@@ -406,7 +482,7 @@ const MusicScaleTrainer = () => {
       <div className="relative w-48 h-48 mx-auto mb-3">
         {/* Immagine personalizzata del cerchio delle note */}
         <img 
-          src="/Cerchio delle note.png" 
+          src="/cerchio delle note.png" 
           alt="Cerchio delle note" 
           className="w-full h-full object-contain"
         />
@@ -905,9 +981,6 @@ const MusicScaleTrainer = () => {
                 <div>
                   <div className="text-center mb-2">
                     <h3 className="text-base font-bold text-slate-200 mb-1">🎹 Tastiera Virtuale</h3>
-                    <p className="text-slate-300 text-xs">
-                      Clicca 2 volte sul tasto per inserire la nota
-                    </p>
                   </div>
                   
                   <VirtualPiano />
