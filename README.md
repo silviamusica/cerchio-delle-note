@@ -1,4 +1,8 @@
-# 🎹 Il Cerchio delle Note - Music Scale Trainer
+# Il Cerchio delle Note - Music Scale Trainer
+
+Un trainer interattivo per imparare la scala musicale e sviluppare la memoria musicale.
+
+## 🚀 Deploy Status: Active - Ready for iframe embedding
 
 Un'applicazione interattiva per imparare la scala musicale attraverso il gioco, con un design moderno e un'interfaccia intuitiva.
 
