@@ -1207,6 +1207,12 @@ const MusicScaleTrainer = () => {
                   <textarea
                     value={userAnswer}
                     onChange={(e) => setUserAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleEnterCheckAnswer();
+                      }
+                    }}
                     placeholder={currentQuestion === 0 ? "Scrivi: do re mi fa sol la si do" : ""}
                     className={`w-full p-4 text-center text-lg font-medium border-3 rounded-xl focus:outline-none focus:ring-4 transition-all duration-300 h-24 resize-none ${
                       feedback === 'correct' 
